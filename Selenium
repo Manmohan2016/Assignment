@@ -1,0 +1,78 @@
+import pytest
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+import sys
+
+# Fixture for setting up and tearing down the Selenium WebDriver
+@pytest.fixture(scope="module")
+def driver():
+    options = Options()
+    options.add_argument('--headless')  # Run browser in headless mode
+    options.add_argument('--disable-gpu')  # Disable GPU usage
+    options.add_argument('--window-size=1920,1080')  # Set window size
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
+    yield driver
+    driver.quit()
+
+def test_search_functionality(driver):
+    # Navigate to the target URL
+    url = "https://www.lambdatest.com/selenium-playground/table-sort-search-demo"
+    driver.get(url)
+
+    # Locate the search box and input 'New York'
+    search_box = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, "//input[@type='search']"))
+    )
+    search_box.clear()
+    search_box.send_keys("New York")
+
+    # Ensure the table is fully loaded before querying rows
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.XPATH, "//table[@id='example']/tbody/tr"))
+    )
+
+    # Wait for the table to update with search results
+    WebDriverWait(driver, 10).until(
+        lambda d: len([row for row in d.find_elements(By.XPATH, "//table[@id='example']/tbody/tr") if row.is_displayed()]) == 5
+    )
+
+    # Locate and validate the table rows matching the search
+    rows = driver.find_elements(By.XPATH, "//table[@id='example']/tbody/tr")
+    visible_rows = [row for row in rows if row.is_displayed()]
+
+    # Assertion for the count of visible rows
+    assert len(visible_rows) == 5, f"Expected 5 rows, but found {len(visible_rows)}"
+
+    # Validate the total entries text
+    total_entries_text = driver.find_element(By.ID, "example_info").text
+    assert "24 entries" in total_entries_text, f"Unexpected entries text: {total_entries_text}"
+
+if __name__ == "__main__":
+    verbosity = "-v" if "--verbose" in sys.argv else ""
+    log_option = "--disable-warnings" if "--no-warnings" in sys.argv else ""
+    pytest.main([opt for opt in [verbosity, log_option, __file__] if opt])
+
+Run Script : pytest qa_selenium_test.py --verbose --no-warnings
+
+
+
+
+  Approach:
+Navigate to the specified webpage.
+Wait for the search box to load, input the term "New York", and wait for the table to update.
+Ensure the table content dynamically updates to show the filtered results.
+Assert that:
+Exactly 5 rows are visible in the filtered table.
+The footer displays "24 entries" as expected.
+
+Best Practices:
+Utilized explicit waits to ensure elements are loaded and dynamic content is handled reliably.
+Headless mode is used for efficiency in test execution.
+The script is structured to follow PEP8 standards and is modular to allow further enhancements.
